@@ -26,6 +26,9 @@ func (link Link) Validate() error {
 	}
 	u, err := url.ParseRequestURI(link.URL)
 	if err != nil {
+		return err
+	}
+	if u.Host == "" {
 		return errors.New("empty host")
 	}
 	if u.Scheme != "http" && u.Scheme != "https" {
