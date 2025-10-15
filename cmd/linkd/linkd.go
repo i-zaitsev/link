@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/i-zaisev/link"
 	"github.com/i-zaisev/link/rest"
@@ -15,14 +16,26 @@ import (
 
 type config struct {
 	http struct {
-		addr string
+		addr     string
+		timeouts struct{ read, idle time.Duration }
 	}
 	lg *slog.Logger
 }
 
 func main() {
 	var cfg config
-	flag.StringVar(&cfg.http.addr, "http.addr", "localhost:8080", "http address to listen on")
+	flag.StringVar(
+		&cfg.http.addr,
+		"http.addr", "localhost:8080", "http address to listen on",
+	)
+	flag.DurationVar(
+		&cfg.http.timeouts.read,
+		"http.timeout.read", 20*time.Second, "read timeout",
+	)
+	flag.DurationVar(
+		&cfg.http.timeouts.idle,
+		"http.timeout.idle", 40*time.Second, "idle timeout",
+	)
 	flag.Parse()
 
 	cfg.lg = slog.New(slog.NewTextHandler(os.Stderr, nil)).With("app", "linkd")
@@ -42,8 +55,14 @@ func run(_ context.Context, cfg config) error {
 	mux.Handle("GET /r/{key}", rest.Resolve(cfg.lg, shortener))
 	mux.HandleFunc("GET /health", rest.Health)
 
-	err := http.ListenAndServe(cfg.http.addr, mux)
-	if !errors.Is(err, http.ErrServerClosed) {
+	server := &http.Server{
+		Handler:     mux,
+		Addr:        cfg.http.addr,
+		ReadTimeout: cfg.http.timeouts.read,
+		IdleTimeout: cfg.http.timeouts.idle,
+	}
+
+	if err := server.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
 		return fmt.Errorf("server closed unexpectedly: %w", err)
 	}
 
