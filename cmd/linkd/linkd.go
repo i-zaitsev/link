@@ -1,4 +1,4 @@
-package linkd
+package main
 
 import (
 	"flag"
@@ -19,5 +19,5 @@ func main() {
 	flag.Parse()
 
 	cfg.lg = slog.New(slog.NewTextHandler(os.Stderr, nil)).With("app", "linkd")
-	
+
 }
