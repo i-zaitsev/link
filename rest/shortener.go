@@ -2,36 +2,38 @@ package rest
 
 import (
 	"errors"
-	"fmt"
 	"log/slog"
 	"net/http"
 
 	"github.com/i-zaisev/link"
+	"github.com/i-zaisev/link/kit/hio"
 )
 
 func Shorten(lg *slog.Logger, links *link.Shortener) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		key, err := links.Shorten(r.Context(), link.Link{
-			Key: link.Key(r.PostFormValue("key")),
-			URL: r.PostFormValue("url"),
-		})
-		if err != nil {
-			httpError(w, r, lg, fmt.Errorf("shortening: %w", err))
-			return
+	with := newResponder(lg)
+	return hio.Handler(func(w http.ResponseWriter, r *http.Request) hio.Handler {
+		var lnk link.Link
+		if err := hio.DecodeJSON(r.Body, &lnk); err != nil {
+			return with.Error("decoding: %w: %w", err, link.ErrBadRequest)
 		}
-		w.WriteHeader(http.StatusCreated)
-		_, _ = fmt.Fprint(w, key)
+		key, err := links.Shorten(r.Context(), lnk)
+		if err != nil {
+			return with.Error("shortening: %w", err)
+		}
+		return with.JSON(http.StatusCreated, map[string]link.Key{
+			"key": key,
+		})
 	})
 }
 
 func Resolve(lg *slog.Logger, links *link.Shortener) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	with := newResponder(lg)
+	return hio.Handler(func(w http.ResponseWriter, r *http.Request) hio.Handler {
 		lnk, err := links.Resolve(r.Context(), link.Key(r.PathValue("key")))
 		if err != nil {
-			httpError(w, r, lg, fmt.Errorf("resolving: %w", err))
-			return
+			return with.Error("resolving: %w", err)
 		}
-		http.Redirect(w, r, lnk.URL, http.StatusFound)
+		return with.Redirect(http.StatusFound, lnk.URL)
 	})
 }
 
@@ -55,4 +57,14 @@ func httpError(
 		err = link.ErrInternal
 	}
 	http.Error(w, err.Error(), code)
+}
+
+func newResponder(lg *slog.Logger) hio.Responder {
+	err := func(err error) hio.Handler {
+		return func(w http.ResponseWriter, r *http.Request) hio.Handler {
+			httpError(w, r, lg, err)
+			return nil
+		}
+	}
+	return hio.NewResponder(err)
 }
