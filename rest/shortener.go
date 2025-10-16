@@ -13,7 +13,10 @@ func Shorten(lg *slog.Logger, links *link.Shortener) http.Handler {
 	with := newResponder(lg)
 	return hio.Handler(func(w http.ResponseWriter, r *http.Request) hio.Handler {
 		var lnk link.Link
-		if err := hio.DecodeJSON(r.Body, &lnk); err != nil {
+		if err := hio.DecodeJSON(
+			hio.MaxBytesReader(w, r.Body, 4096),
+			&lnk,
+		); err != nil {
 			return with.Error("decoding: %w: %w", err, link.ErrBadRequest)
 		}
 		key, err := links.Shorten(r.Context(), lnk)
