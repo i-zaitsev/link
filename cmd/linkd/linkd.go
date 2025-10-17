@@ -10,10 +10,10 @@ import (
 	"os"
 	"time"
 
-	"github.com/i-zaisev/link"
-	"github.com/i-zaisev/link/kit/hlog"
-	"github.com/i-zaisev/link/kit/traceid"
-	"github.com/i-zaisev/link/rest"
+	"github.com/i-zaitsev/link"
+	"github.com/i-zaitsev/link/kit/hlog"
+	"github.com/i-zaitsev/link/kit/traceid"
+	"github.com/i-zaitsev/link/rest"
 )
 
 type config struct {

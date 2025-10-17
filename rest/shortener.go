@@ -5,8 +5,8 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/i-zaisev/link"
-	"github.com/i-zaisev/link/kit/hio"
+	"github.com/i-zaitsev/link"
+	"github.com/i-zaitsev/link/kit/hio"
 )
 
 func Shorten(lg *slog.Logger, links *link.Shortener) http.Handler {
