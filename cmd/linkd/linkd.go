@@ -10,10 +10,10 @@ import (
 	"os"
 	"time"
 
-	"github.com/i-zaitsev/link"
 	"github.com/i-zaitsev/link/kit/hlog"
 	"github.com/i-zaitsev/link/kit/traceid"
 	"github.com/i-zaitsev/link/rest"
+	"github.com/i-zaitsev/link/sqlite"
 )
 
 type config struct {
@@ -21,6 +21,7 @@ type config struct {
 		addr     string
 		timeouts struct{ read, idle time.Duration }
 	}
+	db struct{ dsn string }
 	lg *slog.Logger
 }
 
@@ -38,6 +39,10 @@ func main() {
 		&cfg.http.timeouts.idle,
 		"http.timeout.idle", 40*time.Second, "idle timeout",
 	)
+	flag.StringVar(
+		&cfg.db.dsn,
+		"db.dsn", "file:links.db?mode=rwc", "database DSN",
+	)
 	flag.Parse()
 
 	cfg.lg = slog.New(slog.NewTextHandler(os.Stderr, nil)).With("app", "linkd")
@@ -49,8 +54,13 @@ func main() {
 	}
 }
 
-func run(_ context.Context, cfg config) error {
-	shortener := new(link.Shortener)
+func run(ctx context.Context, cfg config) error {
+	db, err := sqlite.Dial(ctx, cfg.db.dsn)
+	if err != nil {
+		return fmt.Errorf("dialing database: %w", err)
+	}
+
+	shortener := sqlite.NewShortener(db)
 
 	lg := slog.New(traceid.NewLogHandler(cfg.lg.Handler()))
 

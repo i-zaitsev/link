@@ -1,6 +1,7 @@
 package rest
 
 import (
+	"context"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -9,7 +10,11 @@ import (
 	"github.com/i-zaitsev/link/kit/hio"
 )
 
-func Shorten(lg *slog.Logger, links *link.Shortener) http.Handler {
+type Shortener interface {
+	Shorten(context.Context, link.Link) (link.Key, error)
+}
+
+func Shorten(lg *slog.Logger, links Shortener) http.Handler {
 	with := newResponder(lg)
 	return hio.Handler(func(w http.ResponseWriter, r *http.Request) hio.Handler {
 		var lnk link.Link
@@ -29,7 +34,11 @@ func Shorten(lg *slog.Logger, links *link.Shortener) http.Handler {
 	})
 }
 
-func Resolve(lg *slog.Logger, links *link.Shortener) http.Handler {
+type Resolver interface {
+	Resolve(context.Context, link.Key) (link.Link, error)
+}
+
+func Resolve(lg *slog.Logger, links Resolver) http.Handler {
 	with := newResponder(lg)
 	return hio.Handler(func(w http.ResponseWriter, r *http.Request) hio.Handler {
 		lnk, err := links.Resolve(r.Context(), link.Key(r.PathValue("key")))
